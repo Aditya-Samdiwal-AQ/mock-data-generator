@@ -22,7 +22,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/Aditya-Samdiwal-AQ/mock-data
 
 The bootstrap script will:
 
-Download csv-to-mock.mjs to a temp directory
-Auto-detect the MockData/ folder
-Run the converter
-Clean up the temp file on exit
+- Download csv-to-mock.mjs to a temp directory
+- Auto-detect the MockData/ folder
+- Run the converter
+- Clean up the temp file on exit
