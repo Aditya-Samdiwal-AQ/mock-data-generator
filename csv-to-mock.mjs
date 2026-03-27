@@ -135,6 +135,8 @@ function detectMessageColumns(headers) {
     messageAttributes:     findColumnBySuffix(headers, '_message_attributes__c'),
     messagePlanFormulary:  findColumnBySuffix(headers, '_message_plan_formulary__c'),
     messageRank:           findColumnBySuffix(headers, '_message_rank__c'),
+    accountId:             findColumnBySuffix(headers, '_account_id__c'),
+    hcpId:                 findColumnBySuffix(headers, '_hcp_id__c'),
   };
 }
 
@@ -235,6 +237,83 @@ function transformProduct(row) {
     'name__v': row['name__v'] || '',
     'product_type__v': row['product_type__v'] || '',
   };
+}
+
+// ── Account Extraction from Messages ─────────────────────────────────────────
+// Auto-detects the HCP account ID and external ID from message records so the
+// accounts section stays in sync when switching HCPs.
+
+function extractAccountFromMessages(rows, cols) {
+  if (!rows.length) return null;
+  const row = rows[0];
+  const accountId = cols.accountId ? row[cols.accountId] : null;
+  const hcpId = cols.hcpId ? row[cols.hcpId] : null;
+  if (!accountId && !hcpId) return null;
+  return { accountId: accountId || '', hcpId: hcpId || '' };
+}
+
+function updateAccountsFromMessages(accounts, hcpInfo) {
+  if (!hcpInfo) return accounts;
+  console.log(`  Auto-detected HCP: accountId=${hcpInfo.accountId}, hcpId=${hcpInfo.hcpId}`);
+  // Update the first account entry (primary account)
+  if (accounts.length > 0) {
+    const acct = { ...accounts[0] };
+    if (hcpInfo.accountId) acct.id = hcpInfo.accountId;
+    if (hcpInfo.hcpId) acct.external_id__v = hcpInfo.hcpId;
+    acct.name__v = `HCP ${hcpInfo.hcpId || hcpInfo.accountId}`;
+    return [acct, ...accounts.slice(1)];
+  }
+  return [{
+    "external_id__v": hcpInfo.hcpId || '',
+    "first_name_cda__v": "",
+    "id": hcpInfo.accountId || '',
+    "last_name_cda__v": "",
+    "name__v": `HCP ${hcpInfo.hcpId || hcpInfo.accountId}`,
+    "object_type__v": "OOT00000000V301",
+    "suffix_cda__v": "",
+    "persontitle__v": ""
+  }];
+}
+
+// ── Mock Config Updater ─────────────────────────────────────────────────────
+// Auto-updates accountId and accountExternalId in aq.config.datasvc.mock.js
+// so the config stays in sync when switching HCPs.
+
+function findConfigFile(mockDir) {
+  // Look for Configuration directory as a sibling of MockData
+  const configDir = path.join(path.dirname(mockDir), 'Configuration');
+  const configFile = path.join(configDir, 'aq.config.datasvc.mock.js');
+  if (fs.existsSync(configFile)) return configFile;
+  return null;
+}
+
+function updateMockConfig(configPath, hcpInfo) {
+  if (!configPath || !hcpInfo) return;
+  let content = fs.readFileSync(configPath, 'utf-8');
+  let updated = false;
+
+  if (hcpInfo.accountId) {
+    const newContent = content.replace(
+      /(accountId:\s*')[^']*(')/,
+      `$1${hcpInfo.accountId}$2`
+    );
+    if (newContent !== content) { content = newContent; updated = true; }
+  }
+
+  if (hcpInfo.hcpId) {
+    const newContent = content.replace(
+      /(accountExternalId:\s*')[^']*(')/,
+      `$1${hcpInfo.hcpId}$2`
+    );
+    if (newContent !== content) { content = newContent; updated = true; }
+  }
+
+  if (updated) {
+    fs.writeFileSync(configPath, content, 'utf-8');
+    console.log(`  Updated: ${configPath}`);
+    console.log(`    accountId: '${hcpInfo.accountId}'`);
+    console.log(`    accountExternalId: '${hcpInfo.hcpId}'`);
+  }
 }
 
 // ── File Writers ─────────────────────────────────────────────────────────────
@@ -580,6 +659,7 @@ function main() {
   }
 
   // ── Process Messages CSV ─────────────────────────────────────────────────
+  let hcpInfo = null;
   if (args.messages) {
     console.log(`\nProcessing messages: ${args.messages}`);
     const csv = fs.readFileSync(args.messages, 'utf-8');
@@ -589,6 +669,12 @@ function main() {
     // Auto-detect columns by suffix
     const headers = Object.keys(rows[0] || {});
     const cols = detectMessageColumns(headers);
+
+    // Extract HCP account info from messages and auto-update accounts
+    hcpInfo = extractAccountFromMessages(rows, cols);
+    if (hcpInfo) {
+      accounts = updateAccountsFromMessages(accounts, hcpInfo);
+    }
 
     messages = rows.map(row => transformMessage(row, cols));
   } else if (existingContent) {
@@ -613,6 +699,15 @@ function main() {
     writeGlobalPlansFile(globalPlans);
   } else {
     console.log('  Skipping pfv.mock.globalPlans.js (no Global_Plans records found)');
+  }
+
+  // ── Auto-update mock config ──────────────────────────────────────────────
+  if (hcpInfo) {
+    const configPath = findConfigFile(MOCK_DIR);
+    if (configPath) {
+      console.log('\nUpdating mock config...');
+      updateMockConfig(configPath, hcpInfo);
+    }
   }
 
   console.log('\nDone! Mock data files have been updated.');
