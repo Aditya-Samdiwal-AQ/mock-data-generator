@@ -18,6 +18,7 @@ From the **IVA project directory** (the folder containing `MockData/`):
 bash <(curl -fsSL https://raw.githubusercontent.com/Aditya-Samdiwal-AQ/mock-data-generator/main/generate-mock.sh) \
   --lookups /path/to/lookups.csv \
   --messages /path/to/messages.csv
+```
 
 The bootstrap script will:
 
