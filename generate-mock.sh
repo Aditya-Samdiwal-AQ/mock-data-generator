@@ -137,4 +137,5 @@ echo ""
 node "$TMP_SCRIPT" "${PASS_ARGS[@]}"
 
 echo ""
-info "Done! Open the app with Live Server in VS Code."
+info "Done! Run 'cd IVA && npx http-server -p 8080' then open http://localhost:8080/Wegovy/"
+info "Note: Avoid VS Code Live Server for email testing — it injects scripts that break email template fragments."
