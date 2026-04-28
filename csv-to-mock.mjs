@@ -458,13 +458,13 @@ function extractExistingSection(content, sectionName) {
 // ── Default Sections ─────────────────────────────────────────────────────────
 
 const DEFAULT_USER = {
-  "alias__sys": "Dr. Novo",
-  "email__sys": "dataintegration@precsionvh.com",
+  "alias__sys": "Dr. User",
+  "email__sys": "dataintegration@example.com",
   "id": "_UserId_",
-  "name__v": "Novo User",
-  "office_phone__sys": "317-555-1212",
+  "name__v": "Generic User",
+  "office_phone__sys": "555-555-1212",
   "title__sys": "Dr.",
-  "username__sys": "Novo@vvtechpartner-precision-medicine-group.com"
+  "username__sys": "branduser@example.com"
 };
 
 const DEFAULT_TERRITORY = {
@@ -504,11 +504,11 @@ const DEFAULT_PARENT_ACCOUNT = {
 };
 
 const DEFAULT_PRODUCTS = [{
-  "description__v": "NNI_401",
-  "external_id__v": "NNI_401",
+  "description__v": "GENERIC_PRODUCT",
+  "external_id__v": "GENERIC_PRODUCT",
   "id": "_VaultProductId_",
-  "manufacturer__v": "Novo",
-  "name__v": "Wegovy",
+  "manufacturer__v": "Generic Manufacturer",
+  "name__v": "Generic Product",
   "product_type__v": "Detail"
 }];
 
