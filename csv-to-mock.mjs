@@ -287,6 +287,26 @@ function findConfigFile(mockDir) {
   return null;
 }
 
+// ── Mock Context Reader ─────────────────────────────────────────────────────
+// Reads mockContext values (userId, territoryId, territoryName, productExternalId)
+// from aq.config.datasvc.mock.js so the generator can write correct static sections
+// without any manual editing of pfv.mock.general.js.
+
+function readMockContext(configPath) {
+  if (!configPath) return {};
+  const content = fs.readFileSync(configPath, 'utf-8');
+  const extract = (key) => {
+    const match = content.match(new RegExp(`${key}:\\s*'([^']*)'`));
+    return match ? match[1] : null;
+  };
+  return {
+    userId: extract('userId'),
+    territoryId: extract('territoryId'),
+    territoryName: extract('territoryName'),
+    productExternalId: extract('productExternalId'),
+  };
+}
+
 function updateMockConfig(configPath, hcpInfo) {
   if (!configPath || !hcpInfo) return;
   let content = fs.readFileSync(configPath, 'utf-8');
@@ -469,6 +489,7 @@ const DEFAULT_USER = {
 
 const DEFAULT_TERRITORY = {
   "id": "_TerritoryId_",
+  "territory__v": "_TerritoryId_",
   "name__v": "_TerritoryName_"
 };
 
@@ -584,6 +605,32 @@ function main() {
   console.log('CSV-to-Mock Converter');
   console.log('=====================');
   console.log(`Output: ${MOCK_DIR}`);
+
+  // Read mockContext from aq.config.datasvc.mock.js to auto-populate static sections
+  const configPath = findConfigFile(MOCK_DIR);
+  const mockContext = readMockContext(configPath);
+  if (mockContext.userId) {
+    DEFAULT_USER.id = mockContext.userId;
+  }
+  if (mockContext.territoryId) {
+    DEFAULT_TERRITORY.id = mockContext.territoryId;
+    DEFAULT_TERRITORY.territory__v = mockContext.territoryId;
+  }
+  if (mockContext.territoryName) {
+    DEFAULT_TERRITORY.name__v = mockContext.territoryName;
+  }
+  if (mockContext.productExternalId) {
+    DEFAULT_PRODUCTS[0].external_id__v = mockContext.productExternalId;
+    DEFAULT_PRODUCTS[0].description__v = mockContext.productExternalId;
+    DEFAULT_PRODUCTS[0].name__v = mockContext.productExternalId.split('::')[0];
+    DEFAULT_PRODUCTS[0].manufacturer__v = '';
+  }
+  if (configPath) {
+    console.log(`  Config: ${configPath}`);
+    if (mockContext.userId) console.log(`  userId: '${mockContext.userId}'`);
+    if (mockContext.territoryId) console.log(`  territoryId: '${mockContext.territoryId}'`);
+    if (mockContext.productExternalId) console.log(`  productExternalId: '${mockContext.productExternalId}'`);
+  }
 
   // Try to preserve existing sections from current mock file
   const existingContent = readExistingGeneral();
@@ -703,7 +750,6 @@ function main() {
 
   // ── Auto-update mock config ──────────────────────────────────────────────
   if (hcpInfo) {
-    const configPath = findConfigFile(MOCK_DIR);
     if (configPath) {
       console.log('\nUpdating mock config...');
       updateMockConfig(configPath, hcpInfo);
